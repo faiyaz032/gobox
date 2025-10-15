@@ -1,4 +1,3 @@
-// internal/docker/image.go
 package docker
 
 import (

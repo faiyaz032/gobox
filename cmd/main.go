@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/faiyaz032/gobox/internal/docker"
-	"github.com/moby/term"
 )
 
 func main() {
@@ -35,14 +34,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error starting container: %v\n", err)
 		return
 	}
-
-	fd := os.Stdin.Fd()
-	oldState, err := term.MakeRaw(fd)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error setting raw mode: %v\n", err)
-		return
-	}
-	defer term.RestoreTerminal(fd, oldState)
 
 	hijackResp, err := docker.AttachShell(apiClient, ctx, containerId)
 	if err != nil {

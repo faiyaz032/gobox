@@ -3,14 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
+	"net/http"
 	"os"
 
 	"github.com/docker/docker/client"
 	"github.com/faiyaz032/gobox/internal/docker"
+	"github.com/gorilla/websocket"
 )
 
-func main() {
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Println("WebSocket upgrade error:", err)
+		return
+	}
+	defer conn.Close()
+
 	ctx := context.Background()
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -29,6 +43,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error creating container: %v\n", err)
 		return
 	}
+	defer docker.CleanUP(apiClient, ctx, containerId)
 
 	if err := docker.StartContainer(apiClient, ctx, containerId); err != nil {
 		fmt.Fprintf(os.Stderr, "Error starting container: %v\n", err)
@@ -41,8 +56,29 @@ func main() {
 		return
 	}
 
-	go io.Copy(hijackResp.Conn, os.Stdin)
-	io.Copy(os.Stdout, hijackResp.Reader)
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := hijackResp.Reader.Read(buf)
+			if err != nil {
+				break
+			}
+			conn.WriteMessage(websocket.TextMessage, buf[:n])
+		}
+	}()
 
-	defer docker.CleanUP(apiClient, ctx, containerId)
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		hijackResp.Conn.Write(msg)
+	}
+
+}
+
+func main() {
+	http.HandleFunc("/ws", wsHandler)
+	fmt.Println("Server running on :8080")
+	http.ListenAndServe(":8080", nil)
 }

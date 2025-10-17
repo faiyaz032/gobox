@@ -1,0 +1,6 @@
+1. Base container - Done
+2. Resource limitation - Done
+3. Network Isolation - DONE
+4. Container commit on session close
+5. Container prune after certain time
+7. Drop CAP - DONE

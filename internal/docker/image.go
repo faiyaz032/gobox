@@ -10,7 +10,7 @@ import (
 )
 
 func PullImage(apiClient *client.Client, ctx context.Context) error {
-	out, err := apiClient.ImagePull(ctx, "ubuntu:latest", image.PullOptions{})
+	out, err := apiClient.ImagePull(ctx, "gobox-base:latest", image.PullOptions{})
 	if err != nil {
 		return fmt.Errorf("pull image failed: %w", err)
 	}

@@ -6,19 +6,49 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/faiyaz032/gobox/util"
 )
 
+func createNetwork(apiClient *client.Client, ctx context.Context, containerName string) (string, error) {
+	networkName := fmt.Sprintf("net-%s", containerName)
+	networkResp, err := apiClient.NetworkCreate(ctx, networkName, network.CreateOptions{
+		Driver: "bridge",
+	})
+	if err != nil {
+		return "", fmt.Errorf("create network failed: %w", err)
+	}
+
+	return networkResp.ID, nil
+}
+
 func CreateContainer(apiClient *client.Client, ctx context.Context) (string, error) {
+
 	containerName := util.GenerateContainerName("ubuntu")
+
+	networkID, err := createNetwork(apiClient, ctx, containerName)
+	if err != nil {
+		return "", err
+	}
+
 	containerResp, err := apiClient.ContainerCreate(ctx,
 		&container.Config{
-			Image: "ubuntu:latest",
+			Image: "gobox-base:latest",
 			Cmd:   []string{"sleep", "3600"},
 			Tty:   true,
 		},
-		nil, nil, nil, containerName,
+		&container.HostConfig{
+			CapDrop:        []string{"ALL"},
+			CapAdd:         []string{"CAP_NET_RAW"},
+			ReadonlyRootfs: true,
+			NetworkMode:    container.NetworkMode(networkID),
+			Resources: container.Resources{
+				Memory:   256 * 1024 * 1024,
+				NanoCPUs: 500000000,
+			},
+		},
+		nil, nil, containerName,
 	)
 	if err != nil {
 		return "", fmt.Errorf("create container failed: %w", err)

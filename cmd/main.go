@@ -17,13 +17,56 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println("WebSocket upgrade error:", err)
-		return
+func wsHandler(apiClient *client.Client, ctx context.Context) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			fmt.Println("WebSocket upgrade error:", err)
+			return
+		}
+		defer conn.Close()
+
+		containerId, err := docker.CreateContainer(apiClient, ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating container: %v\n", err)
+			return
+		}
+		defer docker.CleanUP(apiClient, ctx, containerId)
+
+		if err := docker.StartContainer(apiClient, ctx, containerId); err != nil {
+			fmt.Fprintf(os.Stderr, "Error starting container: %v\n", err)
+			return
+		}
+
+		hijackResp, err := docker.AttachShell(apiClient, ctx, containerId)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error attaching shell: %v\n", err)
+			return
+		}
+
+		go func() {
+			buf := make([]byte, 1024)
+			for {
+				n, err := hijackResp.Reader.Read(buf)
+				if err != nil {
+					break
+				}
+				conn.WriteMessage(websocket.TextMessage, buf[:n])
+			}
+		}()
+
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			hijackResp.Conn.Write(msg)
+		}
 	}
-	defer conn.Close()
+}
+
+func main() {
 
 	ctx := context.Background()
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
@@ -33,52 +76,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer apiClient.Close()
 
-	if err := docker.PullImage(apiClient, ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Error pulling image: %v\n", err)
-		return
-	}
-
-	containerId, err := docker.CreateContainer(apiClient, ctx)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating container: %v\n", err)
-		return
-	}
-	defer docker.CleanUP(apiClient, ctx, containerId)
-
-	if err := docker.StartContainer(apiClient, ctx, containerId); err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting container: %v\n", err)
-		return
-	}
-
-	hijackResp, err := docker.AttachShell(apiClient, ctx, containerId)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error attaching shell: %v\n", err)
-		return
-	}
-
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := hijackResp.Reader.Read(buf)
-			if err != nil {
-				break
-			}
-			conn.WriteMessage(websocket.TextMessage, buf[:n])
-		}
-	}()
-
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			break
-		}
-		hijackResp.Conn.Write(msg)
-	}
-
-}
-
-func main() {
-	http.HandleFunc("/ws", wsHandler)
+	http.HandleFunc("/ws", wsHandler(apiClient, ctx))
 	fmt.Println("Server running on :8080")
 	http.ListenAndServe(":8080", nil)
 }

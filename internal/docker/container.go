@@ -64,6 +64,7 @@ func StartContainer(apiClient *client.Client, ctx context.Context, containerId s
 }
 
 func AttachShell(apiClient *client.Client, ctx context.Context, containerID string) (types.HijackedResponse, error) {
+
 	execResp, err := apiClient.ContainerExecCreate(ctx, containerID, container.ExecOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
@@ -83,12 +84,26 @@ func AttachShell(apiClient *client.Client, ctx context.Context, containerID stri
 	return hijackResp, nil
 }
 
-func CleanUP(apiClient *client.Client, ctx context.Context, containerID string) error {
+func RemoveContainer(apiClient *client.Client, ctx context.Context, containerID string) error {
 	if err := apiClient.ContainerRemove(ctx, containerID, container.RemoveOptions{
 		RemoveVolumes: true,
 		Force:         true,
 	}); err != nil {
 		return fmt.Errorf("remove container failed: %w", err)
+	}
+	return nil
+}
+
+func PauseContainer(apiClient *client.Client, ctx context.Context, containerID string) error {
+	if err := apiClient.ContainerPause(ctx, containerID); err != nil {
+		return fmt.Errorf("pause container failed: %w", err)
+	}
+	return nil
+}
+
+func UnpauseContainer(ctx context.Context, apiClient *client.Client, containerID string) error {
+	if err := apiClient.ContainerUnpause(ctx, containerID); err != nil {
+		return fmt.Errorf("unpause container failed: %w", err)
 	}
 	return nil
 }

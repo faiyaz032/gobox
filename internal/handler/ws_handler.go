@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/docker/docker/client"
+	appErr "github.com/faiyaz032/gobox/internal/errors"
 	"github.com/faiyaz032/gobox/internal/service"
 	"github.com/gorilla/websocket"
 )
@@ -27,47 +29,74 @@ func NewHandler(svc *service.Service, apiClient *client.Client) *Handler {
 	}
 }
 
+type WSMessage struct {
+	Type  string      `json:"type"`
+	Data  interface{} `json:"data,omitempty"`
+	Error string      `json:"error,omitempty"`
+}
+
+func writeWSError(ws *websocket.Conn, err error, context string) {
+	log.Printf("[WebSocket error] %s: %v", context, err)
+
+	msg := WSMessage{Type: "error"}
+
+	var appError *appErr.AppError
+	if appErr.IsAppError(err) {
+		appError = err.(*appErr.AppError)
+		msg.Error = appError.Message
+	} else {
+		msg.Error = context
+	}
+
+	ws.WriteJSON(msg)
+}
+
 func (h *Handler) HandleWS(w http.ResponseWriter, r *http.Request) error {
 	ctx := context.Background()
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer ws.Close()
 
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		http.Error(w, "session_id missing", http.StatusBadRequest)
+		writeWSError(ws, appErr.NewAppError(400, "session_id is required"), "invalid request")
 		return nil
 	}
 
-	resp, err := h.svc.Start(ctx, sessionID)
+	container, err := h.svc.Start(ctx, sessionID)
 	if err != nil {
-		return err
+		writeWSError(ws, err, "failed to start session")
+		return nil
 	}
 
-	// read from container and write to WebSocket
 	go func() {
 		buf := make([]byte, 1024)
 		for {
-			n, err := resp.Reader.Read(buf)
+			n, err := container.Reader.Read(buf)
 			if err != nil {
+				writeWSError(ws, err, "container read error")
 				break
 			}
-			conn.WriteMessage(websocket.TextMessage, buf[:n])
+			ws.WriteMessage(websocket.TextMessage, buf[:n])
 		}
 	}()
 
-	// read from WebSocket and write to container
 	for {
-		_, msg, err := conn.ReadMessage()
+		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			h.svc.Pause(ctx, resp.ContainerID)
+			if pauseErr := h.svc.Pause(ctx, container.ContainerID); pauseErr != nil {
+				writeWSError(ws, pauseErr, "failed to pause container")
+			}
+			ws.WriteJSON(WSMessage{Type: "status", Data: "container paused"})
 			break
 		}
-		if _, err := resp.Conn.Write(msg); err != nil {
-			return err
+
+		if _, err := container.Conn.Write(msg); err != nil {
+			writeWSError(ws, err, "failed to write to container")
+			break
 		}
 	}
 

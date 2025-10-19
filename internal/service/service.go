@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/faiyaz032/gobox/internal/docker"
+	"github.com/faiyaz032/gobox/internal/errors"
 	"github.com/faiyaz032/gobox/internal/infra/database"
 )
 
@@ -34,29 +35,28 @@ func (s *Service) Start(ctx context.Context, sessionID string) (*StartResponse, 
 	if !ok {
 		containerID, err := docker.CreateContainer(ctx, s.apiClient)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, 500, "failed to create container")
 		}
 
 		mapItem := database.SessionContainer{
 			ContainerID: containerID,
 			LastActive:  time.Now(),
 		}
-
 		s.repository.Set(ctx, sessionID, mapItem)
 		item = mapItem
 	} else {
 		if err := docker.UnpauseContainer(ctx, s.apiClient, item.ContainerID); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, 500, "failed to unpause container")
 		}
 	}
 
 	if err := docker.StartContainer(ctx, s.apiClient, item.ContainerID); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, 500, "failed to start container")
 	}
 
 	hijackResp, err := docker.AttachShell(ctx, s.apiClient, item.ContainerID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, 500, "failed to attach shell")
 	}
 
 	return &StartResponse{
@@ -67,5 +67,8 @@ func (s *Service) Start(ctx context.Context, sessionID string) (*StartResponse, 
 }
 
 func (s *Service) Pause(ctx context.Context, containerID string) error {
-	return docker.PauseContainer(ctx, s.apiClient, containerID)
+	if err := docker.PauseContainer(ctx, s.apiClient, containerID); err != nil {
+		return errors.Wrap(err, 500, "failed to pause container")
+	}
+	return nil
 }

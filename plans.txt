@@ -4,3 +4,10 @@
 4. Container commit on session close
 5. Container prune after certain time
 7. Drop CAP - DONE
+
+
+
+1. Use proper browser session instead of query param
+2. Database integration
+3. Fine tune network Isolation
+4. Deploy it to a VM

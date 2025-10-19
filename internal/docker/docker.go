@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/faiyaz032/gobox/util"
+	"github.com/faiyaz032/gobox/internal/util"
 )
 
 func createNetwork(ctx context.Context, apiClient *client.Client, containerName string) (string, error) {

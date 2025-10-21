@@ -29,6 +29,18 @@ func (s *Repository) Get(ctx context.Context, sessionID string) (SessionContaine
 	return val, ok
 }
 
+func (s *Repository) GetAll(ctx context.Context) map[string]SessionContainer {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	copyMap := make(map[string]SessionContainer, len(s.store))
+	for k, v := range s.store {
+		copyMap[k] = v
+	}
+
+	return copyMap
+}
+
 func (s *Repository) Set(ctx context.Context, sessionID string, value SessionContainer) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

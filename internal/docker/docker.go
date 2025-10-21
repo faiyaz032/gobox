@@ -5,33 +5,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/faiyaz032/gobox/internal/errors"
 	"github.com/faiyaz032/gobox/internal/util"
 )
 
-func createNetwork(ctx context.Context, apiClient *client.Client, containerName string) (string, error) {
-	networkName := util.GenerateContainerName(containerName)
-	networkResp, err := apiClient.NetworkCreate(ctx, networkName, network.CreateOptions{
-		Driver: "bridge",
-	})
-	if err != nil {
-		return "", err
-	}
-	return networkResp.ID, nil
-}
-
-func removeNetwork(ctx context.Context, apiClient *client.Client, networkID string) error {
-	return apiClient.NetworkRemove(ctx, networkID)
-}
-
 func CreateContainer(ctx context.Context, apiClient *client.Client) (string, error) {
 	containerName := util.GenerateContainerName("ubuntu")
-
-	networkID, err := createNetwork(ctx, apiClient, containerName)
-	if err != nil {
-		return "", err
-	}
 
 	containerResp, err := apiClient.ContainerCreate(ctx,
 		&container.Config{
@@ -42,16 +22,15 @@ func CreateContainer(ctx context.Context, apiClient *client.Client) (string, err
 		&container.HostConfig{
 			CapDrop:     []string{"ALL"},
 			CapAdd:      []string{"CAP_NET_RAW"},
-			NetworkMode: container.NetworkMode(networkID),
+			NetworkMode: "bridge",
 			Resources: container.Resources{
 				Memory:   256 * 1024 * 1024,
-				NanoCPUs: 500000000,
+				NanoCPUs: 500_000_000,
 			},
 		},
 		nil, nil, containerName,
 	)
 	if err != nil {
-		removeNetwork(ctx, apiClient, networkID)
 		return "", err
 	}
 
@@ -90,4 +69,13 @@ func PauseContainer(ctx context.Context, apiClient *client.Client, containerID s
 
 func UnpauseContainer(ctx context.Context, apiClient *client.Client, containerID string) error {
 	return apiClient.ContainerUnpause(ctx, containerID)
+}
+
+func IsContainerPaused(ctx context.Context, apiClient *client.Client, containerID string) (bool, error) {
+	containerJSON, err := apiClient.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return false, errors.Wrap(err, 500, "failed to inspect container")
+	}
+
+	return containerJSON.State.Paused, nil
 }

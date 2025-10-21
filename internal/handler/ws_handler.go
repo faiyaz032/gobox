@@ -12,6 +12,7 @@ import (
 )
 
 type Handler struct {
+	ctx       context.Context
 	apiClient *client.Client
 	svc       *service.Service
 }
@@ -22,8 +23,9 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func NewHandler(svc *service.Service, apiClient *client.Client) *Handler {
+func NewHandler(ctx context.Context, svc *service.Service, apiClient *client.Client) *Handler {
 	return &Handler{
+		ctx:       ctx,
 		svc:       svc,
 		apiClient: apiClient,
 	}

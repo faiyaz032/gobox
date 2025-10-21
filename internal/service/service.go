@@ -33,6 +33,7 @@ type StartResponse struct {
 func (s *Service) Start(ctx context.Context, sessionID string) (*StartResponse, error) {
 	item, ok := s.repository.Get(ctx, sessionID)
 	if !ok {
+
 		containerID, err := docker.CreateContainer(ctx, s.apiClient)
 		if err != nil {
 			return nil, errors.Wrap(err, 500, "failed to create container")
@@ -45,15 +46,18 @@ func (s *Service) Start(ctx context.Context, sessionID string) (*StartResponse, 
 		s.repository.Set(ctx, sessionID, mapItem)
 		item = mapItem
 	} else {
-		if err := docker.UnpauseContainer(ctx, s.apiClient, item.ContainerID); err != nil {
-			return nil, errors.Wrap(err, 500, "failed to unpause container")
+		paused, _ := docker.IsContainerPaused(ctx, s.apiClient, item.ContainerID)
+		if paused {
+			docker.UnpauseContainer(ctx, s.apiClient, item.ContainerID)
 		}
 	}
 
+	// Start container (no-op if already running)
 	if err := docker.StartContainer(ctx, s.apiClient, item.ContainerID); err != nil {
 		return nil, errors.Wrap(err, 500, "failed to start container")
 	}
 
+	// Attach shell
 	hijackResp, err := docker.AttachShell(ctx, s.apiClient, item.ContainerID)
 	if err != nil {
 		return nil, errors.Wrap(err, 500, "failed to attach shell")

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,7 +20,7 @@ func main() {
 }
 
 func run() error {
-
+	ctx := context.Background()
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return err
@@ -28,7 +29,7 @@ func run() error {
 
 	repository := database.NewRepository()
 	svc := service.NewService(repository, apiClient)
-	h := handler.NewHandler(svc, apiClient)
+	h := handler.NewHandler(ctx, svc, apiClient)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		if err := h.HandleWS(w, r); err != nil {

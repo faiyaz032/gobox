@@ -9,15 +9,15 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/faiyaz032/gobox/internal/docker"
 	"github.com/faiyaz032/gobox/internal/errors"
-	"github.com/faiyaz032/gobox/internal/infra/database"
+	"github.com/faiyaz032/gobox/internal/repository"
 )
 
 type Service struct {
-	repository *database.Repository
+	repository *repository.Repository
 	apiClient  *client.Client
 }
 
-func NewService(repository *database.Repository, apiClient *client.Client) *Service {
+func NewService(repository *repository.Repository, apiClient *client.Client) *Service {
 	return &Service{
 		repository: repository,
 		apiClient:  apiClient,
@@ -31,19 +31,20 @@ type StartResponse struct {
 }
 
 func (s *Service) Start(ctx context.Context, sessionID string) (*StartResponse, error) {
-	item, ok := s.repository.Get(ctx, sessionID)
-	if !ok {
+	item, err := s.repository.GetOne(ctx, sessionID)
+	if err != nil {
 
 		containerID, err := docker.CreateContainer(ctx, s.apiClient)
 		if err != nil {
 			return nil, errors.Wrap(err, 500, "failed to create container")
 		}
 
-		mapItem := database.SessionContainer{
+		mapItem := &repository.SessionContainer{
+			SessionID:   sessionID,
 			ContainerID: containerID,
 			LastActive:  time.Now(),
 		}
-		s.repository.Set(ctx, sessionID, mapItem)
+		s.repository.Create(ctx, mapItem)
 		item = mapItem
 	} else {
 		paused, _ := docker.IsContainerPaused(ctx, s.apiClient, item.ContainerID)
@@ -52,12 +53,10 @@ func (s *Service) Start(ctx context.Context, sessionID string) (*StartResponse, 
 		}
 	}
 
-	// Start container (no-op if already running)
 	if err := docker.StartContainer(ctx, s.apiClient, item.ContainerID); err != nil {
 		return nil, errors.Wrap(err, 500, "failed to start container")
 	}
 
-	// Attach shell
 	hijackResp, err := docker.AttachShell(ctx, s.apiClient, item.ContainerID)
 	if err != nil {
 		return nil, errors.Wrap(err, 500, "failed to attach shell")

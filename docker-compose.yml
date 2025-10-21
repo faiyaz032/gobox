@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  gobox-postgres:
+    image: postgres:latest
+    container_name: gobox-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: gobox
+      POSTGRES_PASSWORD: gobox123
+      POSTGRES_DB: gobox
+    ports:
+      - "5432:5432"
+    volumes:
+      - gobox_pgdata:/var/lib/postgresql/data
+    networks:
+      - gobox-network
+
+volumes:
+  gobox_pgdata:
+
+networks:
+  gobox-network:
+    driver: bridge

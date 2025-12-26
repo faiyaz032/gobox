@@ -1,6 +1,0 @@
-1. Base container - Done
-2. Resource limitation - Done
-3. Container pause on session close - Done
-4. Container prune after certain time 
-5. Drop CAP - DONE
-6. Database Integration

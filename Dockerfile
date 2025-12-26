@@ -1,17 +1,22 @@
-FROM ubuntu:latest
+# Build stage
+FROM golang:1.22-alpine AS builder
 
-RUN apt-get update && apt-get install -y \
-    sudo \
-    nano \
-    curl \
-    wget \
-    vim \
-    iputils-ping \
-    && apt-get clean
+WORKDIR /app
 
-RUN useradd -m user && echo "user:user" | chpasswd && usermod -aG sudo user
+COPY go.mod go.sum ./
+RUN go mod download
 
-WORKDIR /home/user
-USER user
+COPY . .
 
-CMD ["/bin/bash"]
+RUN go build -o /gobox ./cmd
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+COPY --from=builder /gobox /gobox
+
+EXPOSE 8080
+
+CMD ["/gobox"]

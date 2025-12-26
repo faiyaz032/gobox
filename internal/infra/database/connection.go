@@ -3,13 +3,21 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
 func GetDB() (*sqlx.DB, error) {
-	db, err := sqlx.Connect("postgres", "user=gobox password=gobox123 sslmode=disable")
+	dbUser := os.Getenv("POSTGRES_USER")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DB")
+	dbHost := os.Getenv("POSTGRES_HOST")
+
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s sslmode=disable", dbUser, dbPassword, dbName, dbHost)
+
+	db, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
 		log.Printf("❌ Database connection failed: %v", err)
 		return nil, fmt.Errorf("database connection failed: %w", err)

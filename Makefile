@@ -17,6 +17,7 @@ help:
 	@echo "  make logs          - View logs for development"
 	@echo "  make logs-prod     - View logs for production"
 	@echo "  make clean         - Remove containers, volumes, and images"
+	@echo "  make migration     - Create new migration file"
 	@echo "  make db-migrate    - Run database migrations"
 	@echo "  make db-shell      - Access PostgreSQL shell"
 	@echo "  make app-shell     - Access app container shell"
@@ -77,6 +78,15 @@ logs-app-prod:
 
 logs-db-prod:
 	$(DOCKER_COMPOSE_PROD) logs -f postgres
+
+# Migration commands
+migration:
+	@read -p "Enter migration name: " name; \
+	goose -dir migrations create $$name sql
+
+migration-go:
+	@read -p "Enter migration name: " name; \
+	goose -dir migrations create $$name go
 
 # Database commands
 db-shell:
@@ -141,6 +151,8 @@ install-tools:
 	@echo "Installing development tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/air-verse/air@latest
+	go install github.com/pressly/goose/v3/cmd/goose@latest
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	@echo "Tools installed"
 
 # Git hooks

@@ -12,10 +12,10 @@ import (
 	"github.com/faiyaz032/gobox/internal/config"
 	"github.com/faiyaz032/gobox/internal/infra/db/postgres"
 	"github.com/faiyaz032/gobox/internal/repo"
+	boxhandler "github.com/faiyaz032/gobox/internal/rest/handler/box"
 )
 
 func RunServer(cfg *config.Config) {
-	// Build DSN
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Database.Host,
@@ -35,8 +35,8 @@ func RunServer(cfg *config.Config) {
 	queries := postgres.NewQueries(db)
 
 	boxRepo := repo.NewBoxRepo(queries)
-
-	_ = box.NewSvc(boxRepo)
+	boxSvc := box.NewSvc(boxRepo)
+	boxHandler := boxhandler.NewHandler(boxSvc)
 
 	r := chi.NewRouter()
 
@@ -49,6 +49,8 @@ func RunServer(cfg *config.Config) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Server is running 🚀"))
 	})
+
+	boxhandler.RegisterRoutes(r, boxHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 

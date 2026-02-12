@@ -13,5 +13,10 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	if err := cmd.RunMigrate(cfg); err != nil {
+		log.Fatalf("Migration failed: %v", err)
+	}
+
+	// Start the server
 	cmd.RunServer(cfg)
 }

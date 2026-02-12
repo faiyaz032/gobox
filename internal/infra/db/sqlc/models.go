@@ -10,8 +10,9 @@ import (
 )
 
 type Box struct {
-	FingerprintID uuid.UUID        `db:"fingerprint_id" json:"fingerprint_id"`
+	ID            uuid.UUID        `db:"id" json:"id"`
+	FingerprintID string           `db:"fingerprint_id" json:"fingerprint_id"`
 	ContainerID   string           `db:"container_id" json:"container_id"`
-	Status        string           `db:"status" json:"status"`
+	Status        interface{}      `db:"status" json:"status"`
 	LastActive    pgtype.Timestamp `db:"last_active" json:"last_active"`
 }

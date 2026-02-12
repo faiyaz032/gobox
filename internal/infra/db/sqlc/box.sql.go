@@ -8,7 +8,6 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -21,13 +20,13 @@ INSERT INTO box (
 ) VALUES (
     $1, $2, $3, $4
 )
-RETURNING fingerprint_id, container_id, status, last_active
+RETURNING id, fingerprint_id, container_id, status, last_active
 `
 
 type CreateBoxParams struct {
-	FingerprintID uuid.UUID        `db:"fingerprint_id" json:"fingerprint_id"`
+	FingerprintID string           `db:"fingerprint_id" json:"fingerprint_id"`
 	ContainerID   string           `db:"container_id" json:"container_id"`
-	Status        string           `db:"status" json:"status"`
+	Status        interface{}      `db:"status" json:"status"`
 	LastActive    pgtype.Timestamp `db:"last_active" json:"last_active"`
 }
 
@@ -40,6 +39,7 @@ func (q *Queries) CreateBox(ctx context.Context, arg CreateBoxParams) (Box, erro
 	)
 	var i Box
 	err := row.Scan(
+		&i.ID,
 		&i.FingerprintID,
 		&i.ContainerID,
 		&i.Status,
@@ -53,13 +53,13 @@ DELETE FROM box
 WHERE fingerprint_id = $1
 `
 
-func (q *Queries) DeleteBox(ctx context.Context, fingerprintID uuid.UUID) error {
+func (q *Queries) DeleteBox(ctx context.Context, fingerprintID string) error {
 	_, err := q.db.Exec(ctx, deleteBox, fingerprintID)
 	return err
 }
 
 const getBoxByContainerID = `-- name: GetBoxByContainerID :one
-SELECT fingerprint_id, container_id, status, last_active FROM box
+SELECT id, fingerprint_id, container_id, status, last_active FROM box
 WHERE container_id = $1 LIMIT 1
 `
 
@@ -67,6 +67,7 @@ func (q *Queries) GetBoxByContainerID(ctx context.Context, containerID string) (
 	row := q.db.QueryRow(ctx, getBoxByContainerID, containerID)
 	var i Box
 	err := row.Scan(
+		&i.ID,
 		&i.FingerprintID,
 		&i.ContainerID,
 		&i.Status,
@@ -76,14 +77,15 @@ func (q *Queries) GetBoxByContainerID(ctx context.Context, containerID string) (
 }
 
 const getBoxByFingerprint = `-- name: GetBoxByFingerprint :one
-SELECT fingerprint_id, container_id, status, last_active FROM box
+SELECT id, fingerprint_id, container_id, status, last_active FROM box
 WHERE fingerprint_id = $1 LIMIT 1
 `
 
-func (q *Queries) GetBoxByFingerprint(ctx context.Context, fingerprintID uuid.UUID) (Box, error) {
+func (q *Queries) GetBoxByFingerprint(ctx context.Context, fingerprintID string) (Box, error) {
 	row := q.db.QueryRow(ctx, getBoxByFingerprint, fingerprintID)
 	var i Box
 	err := row.Scan(
+		&i.ID,
 		&i.FingerprintID,
 		&i.ContainerID,
 		&i.Status,
@@ -93,7 +95,7 @@ func (q *Queries) GetBoxByFingerprint(ctx context.Context, fingerprintID uuid.UU
 }
 
 const getExpiredBoxes = `-- name: GetExpiredBoxes :many
-SELECT fingerprint_id, container_id, status, last_active FROM box
+SELECT id, fingerprint_id, container_id, status, last_active FROM box
 WHERE last_active < $1
 `
 
@@ -108,6 +110,7 @@ func (q *Queries) GetExpiredBoxes(ctx context.Context, lastActive pgtype.Timesta
 	for rows.Next() {
 		var i Box
 		if err := rows.Scan(
+			&i.ID,
 			&i.FingerprintID,
 			&i.ContainerID,
 			&i.Status,
@@ -124,11 +127,11 @@ func (q *Queries) GetExpiredBoxes(ctx context.Context, lastActive pgtype.Timesta
 }
 
 const listBoxesByStatus = `-- name: ListBoxesByStatus :many
-SELECT fingerprint_id, container_id, status, last_active FROM box
+SELECT id, fingerprint_id, container_id, status, last_active FROM box
 WHERE status = $1
 `
 
-func (q *Queries) ListBoxesByStatus(ctx context.Context, status string) ([]Box, error) {
+func (q *Queries) ListBoxesByStatus(ctx context.Context, status interface{}) ([]Box, error) {
 	rows, err := q.db.Query(ctx, listBoxesByStatus, status)
 	if err != nil {
 		return nil, err
@@ -138,6 +141,7 @@ func (q *Queries) ListBoxesByStatus(ctx context.Context, status string) ([]Box, 
 	for rows.Next() {
 		var i Box
 		if err := rows.Scan(
+			&i.ID,
 			&i.FingerprintID,
 			&i.ContainerID,
 			&i.Status,
@@ -161,7 +165,7 @@ WHERE fingerprint_id = $1
 `
 
 type TouchBoxParams struct {
-	FingerprintID uuid.UUID        `db:"fingerprint_id" json:"fingerprint_id"`
+	FingerprintID string           `db:"fingerprint_id" json:"fingerprint_id"`
 	LastActive    pgtype.Timestamp `db:"last_active" json:"last_active"`
 }
 
@@ -178,8 +182,8 @@ WHERE fingerprint_id = $1
 `
 
 type UpdateBoxStatusParams struct {
-	FingerprintID uuid.UUID `db:"fingerprint_id" json:"fingerprint_id"`
-	Status        string    `db:"status" json:"status"`
+	FingerprintID string      `db:"fingerprint_id" json:"fingerprint_id"`
+	Status        interface{} `db:"status" json:"status"`
 }
 
 func (q *Queries) UpdateBoxStatus(ctx context.Context, arg UpdateBoxStatusParams) error {

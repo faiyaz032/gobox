@@ -7,18 +7,17 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	CreateBox(ctx context.Context, arg CreateBoxParams) (Box, error)
-	DeleteBox(ctx context.Context, fingerprintID uuid.UUID) error
+	DeleteBox(ctx context.Context, fingerprintID string) error
 	GetBoxByContainerID(ctx context.Context, containerID string) (Box, error)
-	GetBoxByFingerprint(ctx context.Context, fingerprintID uuid.UUID) (Box, error)
+	GetBoxByFingerprint(ctx context.Context, fingerprintID string) (Box, error)
 	// Used by the 24h cleanup worker
 	GetExpiredBoxes(ctx context.Context, lastActive pgtype.Timestamp) ([]Box, error)
-	ListBoxesByStatus(ctx context.Context, status string) ([]Box, error)
+	ListBoxesByStatus(ctx context.Context, status interface{}) ([]Box, error)
 	// Updates last_active and ensures status is 'active'
 	TouchBox(ctx context.Context, arg TouchBoxParams) error
 	UpdateBoxStatus(ctx context.Context, arg UpdateBoxStatusParams) error

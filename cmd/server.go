@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/faiyaz032/gobox/internal/box"
 	"github.com/faiyaz032/gobox/internal/config"
 	"github.com/faiyaz032/gobox/internal/infra/db/postgres"
 	"github.com/faiyaz032/gobox/internal/repo"
@@ -33,7 +34,9 @@ func RunServer(cfg *config.Config) {
 
 	queries := postgres.NewQueries(db)
 
-	_ = repo.NewBoxRepo(queries)
+	boxRepo := repo.NewBoxRepo(queries)
+
+	_ = box.NewSvc(boxRepo)
 
 	r := chi.NewRouter()
 

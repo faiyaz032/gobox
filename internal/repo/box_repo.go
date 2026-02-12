@@ -2,10 +2,12 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/faiyaz032/gobox/internal/domain"
 	db "github.com/faiyaz032/gobox/internal/infra/db/sqlc"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -41,6 +43,9 @@ func (r *BoxRepo) Create(ctx context.Context, box domain.Box) (*domain.Box, erro
 func (r *BoxRepo) GetByFingerprint(ctx context.Context, fingerprintID string) (*domain.Box, error) {
 	dbBox, err := r.queries.GetBoxByFingerprint(ctx, fingerprintID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

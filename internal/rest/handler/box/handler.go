@@ -7,10 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const (
-	fingerprintQueryParam = "fingerprint"
-)
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  8192,
 	WriteBufferSize: 8192,
@@ -30,7 +26,7 @@ func NewHandler(svc Svc) *Handler {
 }
 
 func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
-	fingerprint := r.URL.Query().Get(fingerprintQueryParam)
+	fingerprint := r.URL.Query().Get("fingerprint")
 	if fingerprint == "" {
 		http.Error(w, "fingerprint is required", http.StatusBadRequest)
 		return

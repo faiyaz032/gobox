@@ -17,5 +17,24 @@ func NewSvc(repo Repo) *Svc {
 }
 
 func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint string) error {
+	box, err := s.repo.GetByFingerprint(ctx, fingerprint)
+	if err != nil {
+		return err
+	}
+
+	if box == nil {
+		/*
+		* spin a new container
+		* attach the container with conn for io forwarding
+		* save the fingerprint - container mapping in the database
+		*
+		 */
+	} else {
+		/*
+		* resume the container
+		* attach the container with conn for io forwarding
+		 */
+	}
+
 	return nil
 }

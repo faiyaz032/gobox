@@ -1,42 +1,40 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"time"
 
-	_ "github.com/lib/pq"
+	db "github.com/faiyaz032/gobox/internal/infra/db/sqlc"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DB struct {
-	*sql.DB
-}
+// Connect connects to PostgreSQL and returns a pgxpool.Pool
+func Connect(dsn string) (*pgxpool.Pool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-func Connect(dsn string) (*DB, error) {
-	db, err := sql.Open("postgres", dsn)
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("failed to create pgx pool: %w", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetConnMaxIdleTime(1 * time.Minute)
-
-	if err := db.Ping(); err != nil {
+	// Ping to verify connection
+	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	log.Println("Successfully connected to PostgreSQL database")
-
-	return &DB{db}, nil
+	return pool, nil
 }
 
-func (db *DB) Close() error {
-	return db.DB.Close()
+// NewQueries creates a new Queries instance
+func NewQueries(pool *pgxpool.Pool) *db.Queries {
+	return db.New(pool)
 }
 
-func (db *DB) Health() error {
-	return db.Ping()
+// Close closes the pool
+func Close(pool *pgxpool.Pool) {
+	pool.Close()
 }

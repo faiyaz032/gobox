@@ -10,6 +10,7 @@ import (
 
 	"github.com/faiyaz032/gobox/internal/config"
 	"github.com/faiyaz032/gobox/internal/infra/db/postgres"
+	"github.com/faiyaz032/gobox/internal/repo"
 )
 
 func RunServer(cfg *config.Config) {
@@ -29,6 +30,10 @@ func RunServer(cfg *config.Config) {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	queries := postgres.NewQueries(db)
+
+	_ = repo.NewBoxRepo(queries)
 
 	r := chi.NewRouter()
 

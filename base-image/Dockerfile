@@ -31,8 +31,8 @@ WORKDIR /box
 # Switch to non-root user
 USER box
 
-# Set a custom PS1 prompt (simple prompt without hostname)
-ENV PS1="box:~$ "
+# Set PS1 prompt to show current directory
+ENV PS1="box:\w$ "
 
 # Default command
 CMD ["/bin/bash"]

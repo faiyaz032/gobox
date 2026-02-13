@@ -199,3 +199,16 @@ func (s *Svc) StartIfNotRunning(ctx context.Context, containerID string) error {
 
 	return nil
 }
+
+func (s *Svc) StopContainer(ctx context.Context, containerID string) error {
+	timeout := 10
+	stopOptions := container.StopOptions{
+		Timeout: &timeout,
+	}
+
+	if err := s.client.ContainerStop(ctx, containerID, stopOptions); err != nil {
+		return fmt.Errorf("failed to stop container: %w", err)
+	}
+
+	return nil
+}

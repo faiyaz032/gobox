@@ -19,4 +19,5 @@ type DockerSvc interface {
 	CreateContainer(ctx context.Context) (string, error)
 	AttachContainer(ctx context.Context, containerID string) (types.HijackedResponse, error)
 	StartIfNotRunning(ctx context.Context, containerID string) error
+	StopContainer(ctx context.Context, containerID string) error
 }

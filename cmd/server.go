@@ -36,11 +36,12 @@ func RunServer(cfg *config.Config) {
 
 	queries := postgres.NewQueries(db)
 
+	dockerSvc, err := docker.NewSvc()
+
 	boxRepo := repo.NewBoxRepo(queries)
-	boxSvc := box.NewSvc(boxRepo)
+	boxSvc := box.NewSvc(boxRepo, dockerSvc)
 	boxHandler := boxhandler.NewHandler(boxSvc)
 
-	dockerSvc, err := docker.NewSvc()
 	if err != nil {
 		log.Fatalf("Failed to initialize docker client: %v", err)
 	}

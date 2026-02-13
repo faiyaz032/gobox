@@ -26,10 +26,13 @@ RUN adduser -D -s /bin/bash box \
     && echo "box ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /box
 
 # Switch to non-root user
 USER box
+
+# Set a custom PS1 prompt (simple prompt without hostname)
+ENV PS1="box:~$ "
 
 # Default command
 CMD ["/bin/bash"]

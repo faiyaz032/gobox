@@ -140,15 +140,17 @@ func (s *Svc) BuildBaseImage(ctx context.Context, contextDir string, imageName s
 }
 
 func (s *Svc) CreateContainer(ctx context.Context) (string, error) {
-	// Generate a dynamic container name
+	// generate contaner name
 	containerName := fmt.Sprintf("box-%s", uuid.New().String())
 
-	// Create the container
+	// create container
 	resp, err := s.client.ContainerCreate(ctx,
 		&container.Config{
-			Image: "gobox-base:latest",
-			Cmd:   []string{"bash"},
-			Tty:   true,
+			Image:     "gobox-base:latest",
+			Cmd:       []string{"bash"},
+			Tty:       true,
+			OpenStdin: true,
+			Hostname:  "box",
 		},
 		&container.HostConfig{
 			AutoRemove: false,
@@ -166,4 +168,34 @@ func (s *Svc) CreateContainer(ctx context.Context) (string, error) {
 	}
 
 	return resp.ID, nil
+}
+
+func (s *Svc) AttachContainer(ctx context.Context, containerID string) (types.HijackedResponse, error) {
+	attachResp, err := s.client.ContainerAttach(ctx, containerID, container.AttachOptions{
+		Stream: true,
+		Stdin:  true,
+		Stdout: true,
+		Stderr: true,
+		Logs:   true,
+	})
+	if err != nil {
+		return types.HijackedResponse{}, fmt.Errorf("failed to attach to container: %w", err)
+	}
+
+	return attachResp, nil
+}
+
+func (s *Svc) StartIfNotRunning(ctx context.Context, containerID string) error {
+	inspect, err := s.client.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	if !inspect.State.Running {
+		if err := s.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+			return fmt.Errorf("failed to start container: %w", err)
+		}
+	}
+
+	return nil
 }

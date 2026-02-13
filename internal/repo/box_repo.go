@@ -25,7 +25,7 @@ func (r *BoxRepo) Create(ctx context.Context, box domain.Box) (*domain.Box, erro
 	params := db.CreateBoxParams{
 		FingerprintID: box.FingerprintID,
 		ContainerID:   box.ContainerID,
-		Status:        box.Status,
+		Status:        string(box.Status), // Convert BoxStatus to string
 		LastActive: pgtype.Timestamp{
 			Time:  box.LastActive,
 			Valid: true,
@@ -98,13 +98,13 @@ func (r *BoxRepo) toDomain(dbBox db.Box) *domain.Box {
 		lastActive = dbBox.LastActive.Time
 	}
 
-	status := domain.BoxStatus(dbBox.Status.(string))
-
+	// Since dbBox.Status is now string (after sqlc regeneration),
+	// directly cast it to domain.BoxStatus
 	return &domain.Box{
 		ID:            dbBox.ID,
 		FingerprintID: dbBox.FingerprintID,
 		ContainerID:   dbBox.ContainerID,
-		Status:        status,
+		Status:        domain.BoxStatus(dbBox.Status),
 		LastActive:    lastActive,
 	}
 }

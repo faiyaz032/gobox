@@ -26,7 +26,7 @@ RETURNING id, fingerprint_id, container_id, status, last_active
 type CreateBoxParams struct {
 	FingerprintID string           `db:"fingerprint_id" json:"fingerprint_id"`
 	ContainerID   string           `db:"container_id" json:"container_id"`
-	Status        interface{}      `db:"status" json:"status"`
+	Status        string           `db:"status" json:"status"`
 	LastActive    pgtype.Timestamp `db:"last_active" json:"last_active"`
 }
 
@@ -131,7 +131,7 @@ SELECT id, fingerprint_id, container_id, status, last_active FROM box
 WHERE status = $1
 `
 
-func (q *Queries) ListBoxesByStatus(ctx context.Context, status interface{}) ([]Box, error) {
+func (q *Queries) ListBoxesByStatus(ctx context.Context, status string) ([]Box, error) {
 	rows, err := q.db.Query(ctx, listBoxesByStatus, status)
 	if err != nil {
 		return nil, err
@@ -182,8 +182,8 @@ WHERE fingerprint_id = $1
 `
 
 type UpdateBoxStatusParams struct {
-	FingerprintID string      `db:"fingerprint_id" json:"fingerprint_id"`
-	Status        interface{} `db:"status" json:"status"`
+	FingerprintID string `db:"fingerprint_id" json:"fingerprint_id"`
+	Status        string `db:"status" json:"status"`
 }
 
 func (q *Queries) UpdateBoxStatus(ctx context.Context, arg UpdateBoxStatusParams) error {

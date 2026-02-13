@@ -13,6 +13,6 @@ type Box struct {
 	ID            uuid.UUID        `db:"id" json:"id"`
 	FingerprintID string           `db:"fingerprint_id" json:"fingerprint_id"`
 	ContainerID   string           `db:"container_id" json:"container_id"`
-	Status        interface{}      `db:"status" json:"status"`
+	Status        string           `db:"status" json:"status"`
 	LastActive    pgtype.Timestamp `db:"last_active" json:"last_active"`
 }

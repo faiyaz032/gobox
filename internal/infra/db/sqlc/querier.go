@@ -17,7 +17,7 @@ type Querier interface {
 	GetBoxByFingerprint(ctx context.Context, fingerprintID string) (Box, error)
 	// Used by the 24h cleanup worker
 	GetExpiredBoxes(ctx context.Context, lastActive pgtype.Timestamp) ([]Box, error)
-	ListBoxesByStatus(ctx context.Context, status interface{}) ([]Box, error)
+	ListBoxesByStatus(ctx context.Context, status string) ([]Box, error)
 	// Updates last_active and ensures status is 'active'
 	TouchBox(ctx context.Context, arg TouchBoxParams) error
 	UpdateBoxStatus(ctx context.Context, arg UpdateBoxStatusParams) error

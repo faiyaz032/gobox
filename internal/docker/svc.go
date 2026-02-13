@@ -140,33 +140,36 @@ func (s *Svc) BuildBaseImage(ctx context.Context, contextDir string, imageName s
 }
 
 func (s *Svc) CreateContainer(ctx context.Context) (string, error) {
-	// generate contaner name
+	// generate container name
 	containerName := fmt.Sprintf("box-%s", uuid.New().String())
-
-	// create container
-	resp, err := s.client.ContainerCreate(ctx,
-		&container.Config{
-			Image:     "gobox-base:latest",
-			Cmd:       []string{"bash"},
-			Tty:       true,
-			OpenStdin: true,
-			Hostname:  "box",
+	// create container with resource limits
+	resp, err := s.client.ContainerCreate(ctx, &container.Config{
+		Image:     "gobox-base:latest",
+		Cmd:       []string{"bash"},
+		Tty:       true,
+		OpenStdin: true,
+		Hostname:  "box",
+	}, &container.HostConfig{
+		AutoRemove: false,
+		Resources: container.Resources{
+			Memory:            256 * 1024 * 1024, // 256MB
+			MemoryReservation: 128 * 1024 * 1024,
+			MemorySwap:        256 * 1024 * 1024,
+			NanoCPUs:          500000000, // 0.5 CPU cores
+			CPUShares:         512,       // Half of default priority
+			BlkioWeight:       300,
 		},
-		&container.HostConfig{
-			AutoRemove: false,
+		StorageOpt: map[string]string{
+			"size": "512MB", // 512MB
 		},
-		&network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
-				"gobox-c-network": {},
-			},
+	}, &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			"gobox-c-network": {},
 		},
-		nil,
-		containerName,
-	)
+	}, nil, containerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to create container: %w", err)
 	}
-
 	return resp.ID, nil
 }
 

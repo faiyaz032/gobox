@@ -98,8 +98,6 @@ func (r *BoxRepo) toDomain(dbBox db.Box) *domain.Box {
 		lastActive = dbBox.LastActive.Time
 	}
 
-	// Since dbBox.Status is now string (after sqlc regeneration),
-	// directly cast it to domain.BoxStatus
 	return &domain.Box{
 		ID:            dbBox.ID,
 		FingerprintID: dbBox.FingerprintID,

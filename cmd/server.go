@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/faiyaz032/gobox/internal/box"
 	"github.com/faiyaz032/gobox/internal/config"
+	"github.com/faiyaz032/gobox/internal/docker"
 	"github.com/faiyaz032/gobox/internal/infra/db/postgres"
 	"github.com/faiyaz032/gobox/internal/repo"
 	boxhandler "github.com/faiyaz032/gobox/internal/rest/handler/box"
@@ -37,6 +39,23 @@ func RunServer(cfg *config.Config) {
 	boxRepo := repo.NewBoxRepo(queries)
 	boxSvc := box.NewSvc(boxRepo)
 	boxHandler := boxhandler.NewHandler(boxSvc)
+
+	dockerSvc, err := docker.NewSvc()
+	if err != nil {
+		log.Fatalf("Failed to initialize docker client: %v", err)
+	}
+	defer dockerSvc.Close()
+
+	ctx := context.Background()
+
+	imageName := "gobox-base:latest"
+	dockerfilePath := "./base-image"
+
+	if err := dockerSvc.EnsureImage(ctx, imageName, dockerfilePath); err != nil {
+		log.Fatalf("Failed to ensure docker image: %v", err)
+	}
+
+	log.Println("Docker base image ensured ✅")
 
 	r := chi.NewRouter()
 

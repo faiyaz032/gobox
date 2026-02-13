@@ -50,6 +50,14 @@ func RunServer(cfg *config.Config) {
 
 	imageName := "gobox-base:latest"
 	dockerfilePath := "./base-image"
+	networkName := "gobox-c-network"
+	subnet := "172.25.0.0/16"
+
+	// Ensure network
+	_, err = dockerSvc.EnsureNetwork(ctx, networkName, subnet)
+	if err != nil {
+		log.Fatalf("Failed to ensure network: %v", err)
+	}
 
 	if err := dockerSvc.EnsureImage(ctx, imageName, dockerfilePath); err != nil {
 		log.Fatalf("Failed to ensure docker image: %v", err)

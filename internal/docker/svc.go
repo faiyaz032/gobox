@@ -4,13 +4,17 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/google/uuid"
 )
 
 type Svc struct {
@@ -45,6 +49,35 @@ func (s *Svc) EnsureImage(ctx context.Context, imageName, dockerfilePath string)
 	}
 
 	return nil
+}
+
+func (s *Svc) EnsureNetwork(ctx context.Context, networkName, subnet string) (string, error) {
+	nwList, err := s.client.NetworkList(ctx, network.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to list networks: %w", err)
+	}
+
+	for _, nw := range nwList {
+		if nw.Name == networkName {
+			return nw.ID, nil
+		}
+	}
+
+	resp, err := s.client.NetworkCreate(ctx, networkName, network.CreateOptions{
+		Driver: "bridge",
+		IPAM: &network.IPAM{
+			Driver: "default",
+			Config: []network.IPAMConfig{
+				{
+					Subnet: subnet,
+				},
+			},
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create network: %w", err)
+	}
+	return resp.ID, nil
 }
 
 func (s *Svc) BuildBaseImage(ctx context.Context, contextDir string, imageName string) error {
@@ -104,4 +137,33 @@ func (s *Svc) BuildBaseImage(ctx context.Context, contextDir string, imageName s
 
 	_, err = io.Copy(os.Stdout, res.Body)
 	return err
+}
+
+func (s *Svc) CreateContainer(ctx context.Context) (string, error) {
+	// Generate a dynamic container name
+	containerName := fmt.Sprintf("box-%s", uuid.New().String())
+
+	// Create the container
+	resp, err := s.client.ContainerCreate(ctx,
+		&container.Config{
+			Image: "gobox-base:latest",
+			Cmd:   []string{"bash"},
+			Tty:   true,
+		},
+		&container.HostConfig{
+			AutoRemove: false,
+		},
+		&network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				"gobox-c-network": {},
+			},
+		},
+		nil,
+		containerName,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to create container: %w", err)
+	}
+
+	return resp.ID, nil
 }

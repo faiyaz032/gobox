@@ -3,21 +3,31 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
 
 	"github.com/faiyaz032/gobox/internal/box"
 	"github.com/faiyaz032/gobox/internal/config"
 	"github.com/faiyaz032/gobox/internal/docker"
 	"github.com/faiyaz032/gobox/internal/infra/db/postgres"
+	"github.com/faiyaz032/gobox/internal/infra/logger"
 	"github.com/faiyaz032/gobox/internal/repo"
 	boxhandler "github.com/faiyaz032/gobox/internal/rest/handler/box"
 )
 
 func RunServer(cfg *config.Config) {
+	// Initialize logger
+	log, err := logger.New(cfg.Environment)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
+	}
+	defer log.Sync()
+
+	log.Info("Starting GoBox server", zap.String("environment", cfg.Environment))
+
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Database.Host,
@@ -30,22 +40,21 @@ func RunServer(cfg *config.Config) {
 
 	db, err := postgres.Connect(dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatal("Failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
 	queries := postgres.NewQueries(db)
 
 	dockerSvc, err := docker.NewSvc()
-
-	boxRepo := repo.NewBoxRepo(queries)
-	boxSvc := box.NewSvc(boxRepo, dockerSvc)
-	boxHandler := boxhandler.NewHandler(boxSvc)
-
 	if err != nil {
-		log.Fatalf("Failed to initialize docker client: %v", err)
+		log.Fatal("Failed to initialize docker client", zap.Error(err))
 	}
 	defer dockerSvc.Close()
+
+	boxRepo := repo.NewBoxRepo(queries)
+	boxSvc := box.NewSvc(boxRepo, dockerSvc, log)
+	boxHandler := boxhandler.NewHandler(boxSvc, log)
 
 	ctx := context.Background()
 
@@ -57,14 +66,14 @@ func RunServer(cfg *config.Config) {
 	// Ensure network
 	_, err = dockerSvc.EnsureNetwork(ctx, networkName, subnet)
 	if err != nil {
-		log.Fatalf("Failed to ensure network: %v", err)
+		log.Fatal("Failed to ensure network", zap.Error(err))
 	}
 
 	if err := dockerSvc.EnsureImage(ctx, imageName, dockerfilePath); err != nil {
-		log.Fatalf("Failed to ensure docker image: %v", err)
+		log.Fatal("Failed to ensure docker image", zap.Error(err))
 	}
 
-	log.Println("Docker base image ensured ✅")
+	log.Info("Docker base image ensured")
 
 	r := chi.NewRouter()
 
@@ -74,6 +83,7 @@ func RunServer(cfg *config.Config) {
 
 	// Routes
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		log.Info("Server is healthy")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Server is running 🚀"))
 	})
@@ -82,8 +92,8 @@ func RunServer(cfg *config.Config) {
 
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 
-	log.Printf("Starting server on %s\n", addr)
+	log.Info("Starting server", zap.String("address", addr))
 	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		log.Fatal("Server failed", zap.Error(err))
 	}
 }

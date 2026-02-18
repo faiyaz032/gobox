@@ -3,15 +3,22 @@ package cmd
 import (
 	"database/sql"
 	"fmt"
-	"log"
 
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 
 	"github.com/faiyaz032/gobox/internal/config"
+	"github.com/faiyaz032/gobox/internal/infra/logger"
 )
 
 func RunMigrate(cfg *config.Config) error {
+	// Initialize logger
+	log, err := logger.New(cfg.Environment)
+	if err != nil {
+		return fmt.Errorf("failed to initialize logger: %w", err)
+	}
+	defer log.Sync()
+
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Database.Host,
@@ -38,11 +45,11 @@ func RunMigrate(cfg *config.Config) error {
 
 	migrationsDir := "./migrations"
 
-	log.Println("Running migrations...")
+	log.Info("Running migrations...")
 	if err := goose.Up(db, migrationsDir); err != nil {
 		return fmt.Errorf("goose up failed: %w", err)
 	}
 
-	log.Println("Migrations completed successfully ✅")
+	log.Info("Migrations completed successfully")
 	return nil
 }

@@ -10,6 +10,7 @@ GoBox is a container-as-a-service platform that dynamically provisions isolated 
 - `internal/box/` - Business logic service layer with port interfaces (Repo, DockerSvc)
 - `internal/repo/` - Repository implementations (adapter)
 - `internal/docker/` - Docker client adapter
+- `internal/infra/` - Infrastructure implementations (database, logging)
 - `internal/rest/handler/` - HTTP/WebSocket handlers (adapter)
 - `cmd/` - Application entry points (server, migrations)
 
@@ -56,6 +57,31 @@ func NewSvc(repo Repo, dockerSvc DockerSvc) *Svc
 ```
 
 Wire dependencies in [cmd/server.go](cmd/server.go#L39-L42).
+
+### Logging
+
+**Structured Logging with Zap:** The application uses uber/zap for structured, high-performance logging.
+
+- **Logger initialization:** Created in [cmd/server.go](cmd/server.go) based on environment (`development` or `production`)
+- **Logger package:** [internal/infra/logger/logger.go](internal/infra/logger/logger.go) provides `New(env)` and `NewNop()` constructors
+- **Development mode:** Colorized console output with human-readable format
+- **Production mode:** JSON-formatted logs with ISO8601 timestamps for parsing by log aggregators
+- **Dependency injection:** Logger passed to services via constructor (e.g., `box.NewSvc(repo, dockerSvc, logger)`)
+
+**Usage patterns:**
+
+```go
+// Structured logging with fields
+logger.Info("Connection established",
+    zap.String("fingerprint", fingerprint),
+    zap.Int("active_connections", count))
+
+logger.Error("Failed to stop container",
+    zap.String("container_id", id),
+    zap.Error(err))
+
+// Available log levels: Debug, Info, Warn, Error, Fatal
+```
 
 ### Configuration
 

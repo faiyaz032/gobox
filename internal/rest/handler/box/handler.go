@@ -2,11 +2,11 @@ package boxhandler
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/faiyaz032/gobox/internal/domain"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 )
 
 var upgrader = websocket.Upgrader{
@@ -18,12 +18,14 @@ var upgrader = websocket.Upgrader{
 }
 
 type Handler struct {
-	svc Svc
+	svc    Svc
+	logger *zap.Logger
 }
 
-func NewHandler(svc Svc) *Handler {
+func NewHandler(svc Svc, logger *zap.Logger) *Handler {
 	return &Handler{
-		svc: svc,
+		svc:    svc,
+		logger: logger,
 	}
 }
 
@@ -36,16 +38,21 @@ func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection for fingerprint=%s: %v", fingerprint, err)
+		h.logger.Error("Failed to upgrade connection",
+			zap.String("fingerprint", fingerprint),
+			zap.Error(err))
 		h.writeError(w, domain.NewInternalError("failed to upgrade websocket connection", err))
 		return
 	}
 	defer conn.Close()
 
-	log.Printf("WebSocket connection established for fingerprint=%s", fingerprint)
+	h.logger.Info("WebSocket connection established",
+		zap.String("fingerprint", fingerprint))
 
 	if err := h.svc.Connect(r.Context(), conn, fingerprint); err != nil {
-		log.Printf("Connection error for fingerprint=%s: %v", fingerprint, err)
+		h.logger.Error("Connection error",
+			zap.String("fingerprint", fingerprint),
+			zap.Error(err))
 		
 		// Extract error message for websocket close
 		errorMsg := domain.GetErrorMessage(err)
@@ -53,7 +60,8 @@ func (h *Handler) Connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("WebSocket connection closed for fingerprint=%s", fingerprint)
+	h.logger.Info("WebSocket connection closed",
+		zap.String("fingerprint", fingerprint))
 }
 
 // writeError writes an error response using AppError
@@ -73,6 +81,6 @@ func (h *Handler) writeError(w http.ResponseWriter, err error) {
 	}
 	
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode error response: %v", err)
+		h.logger.Error("Failed to encode error response", zap.Error(err))
 	}
 }

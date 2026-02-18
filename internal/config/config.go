@@ -2,14 +2,14 @@ package config
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	Environment string
 }
 
 type ServerConfig struct {
@@ -29,14 +29,13 @@ func LoadConfig() (*Config, error) {
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
 
-	// Default values
 	viper.SetDefault("SERVER_PORT", "8010")
+	viper.SetDefault("ENVIRONMENT", "development")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
-		log.Println("No .env file found, using environment variables")
 	}
 
 	config := &Config{
@@ -51,6 +50,7 @@ func LoadConfig() (*Config, error) {
 			DBName:   viper.GetString("POSTGRES_DB"),
 			SSLMode:  viper.GetString("POSTGRES_SSLMODE"),
 		},
+		Environment: viper.GetString("ENVIRONMENT"),
 	}
 
 	return config, nil

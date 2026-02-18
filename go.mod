@@ -12,6 +12,7 @@ require (
 	github.com/lib/pq v1.11.2
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/spf13/viper v1.21.0
+	go.uber.org/zap v1.27.1
 )
 
 require (

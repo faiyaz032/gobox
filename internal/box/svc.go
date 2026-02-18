@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/faiyaz032/gobox/internal/domain"
@@ -131,24 +132,33 @@ func (s *Svc) decrementConnection(fingerprint, containerID string) {
 }
 
 func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint string) error {
+	// Validate fingerprint
+	if strings.TrimSpace(fingerprint) == "" {
+		return domain.NewValidationError("fingerprint cannot be empty")
+	}
 
 	s.incrementConnection(fingerprint)
 
 	box, err := s.repo.GetByFingerprint(ctx, fingerprint)
 	if err != nil {
-		s.decrementConnection(fingerprint, "")
-		return fmt.Errorf("failed to get box by fingerprint: %w", err)
+		// Check if it's a NotFound error - this is expected for new boxes
+		if appErr, ok := domain.IsAppError(err); !ok || !appErr.IsType(domain.ErrorTypeNotFound) {
+			s.decrementConnection(fingerprint, "")
+			return err // Return AppError as-is
+		}
+		// box not found is expected, box will be nil and we'll create a new one
+		box = nil
 	}
 
 	if box == nil {
 		containerID, err := s.dockerSvc.CreateContainer(ctx)
 		if err != nil {
 			s.decrementConnection(fingerprint, "")
-			return fmt.Errorf("failed to create container: %w", err)
+			return err // Already an AppError from dockerSvc
 		}
 		if err := s.dockerSvc.StartIfNotRunning(ctx, containerID); err != nil {
 			s.decrementConnection(fingerprint, containerID)
-			return fmt.Errorf("failed to start new container: %w", err)
+			return err // Already an AppError from dockerSvc
 		}
 		newBox := domain.Box{
 			FingerprintID: fingerprint,
@@ -159,13 +169,13 @@ func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint str
 		box, err = s.repo.Create(ctx, newBox)
 		if err != nil {
 			s.decrementConnection(fingerprint, containerID)
-			return fmt.Errorf("failed to create box in repo: %w", err)
+			return err // Already an AppError from repo
 		}
 		fmt.Printf("[BoxSvc] Created new box with container: %s\n", containerID)
 	} else {
 		if err := s.dockerSvc.StartIfNotRunning(ctx, box.ContainerID); err != nil {
 			s.decrementConnection(fingerprint, box.ContainerID)
-			return fmt.Errorf("failed to start container: %w", err)
+			return err // Already an AppError from dockerSvc
 		}
 
 		_, err := s.repo.UpdateStatus(ctx, fingerprint, string(domain.StatusRunning))
@@ -178,7 +188,7 @@ func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint str
 	attachResp, err := s.dockerSvc.AttachContainer(ctx, box.ContainerID)
 	if err != nil {
 		s.decrementConnection(fingerprint, box.ContainerID)
-		return fmt.Errorf("failed to attach to container: %w", err)
+		return err // Already an AppError from dockerSvc
 	}
 	defer attachResp.Close()
 
@@ -223,14 +233,14 @@ func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint str
 				return nil
 			}
 			fmt.Println("[BoxSvc] Error reading from websocket:", err)
-			return fmt.Errorf("read message error: %w", err)
+			return domain.NewInternalError("websocket read error", err)
 		}
 
 		if len(msg) > 0 {
 			_, err := attachResp.Conn.Write(msg)
 			if err != nil {
 				fmt.Println("[BoxSvc] Error writing to container stdin:", err)
-				return fmt.Errorf("write to container error: %w", err)
+				return domain.NewInternalError("container write error", err)
 			}
 		}
 	}

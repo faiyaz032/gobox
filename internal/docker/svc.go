@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/faiyaz032/gobox/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -24,7 +25,7 @@ type Svc struct {
 func NewSvc() (*Svc, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return nil, err
+		return nil, domain.NewDockerError("initialize docker client", err)
 	}
 	return &Svc{client: cli}, nil
 }
@@ -44,7 +45,7 @@ func (s *Svc) EnsureImage(ctx context.Context, imageName, dockerfilePath string)
 				return err
 			}
 		} else {
-			return err
+			return domain.NewDockerError("inspect image", err)
 		}
 	}
 
@@ -54,7 +55,7 @@ func (s *Svc) EnsureImage(ctx context.Context, imageName, dockerfilePath string)
 func (s *Svc) EnsureNetwork(ctx context.Context, networkName, subnet string) (string, error) {
 	nwList, err := s.client.NetworkList(ctx, network.ListOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to list networks: %w", err)
+		return "", domain.NewDockerError("list networks", err)
 	}
 
 	for _, nw := range nwList {
@@ -75,7 +76,7 @@ func (s *Svc) EnsureNetwork(ctx context.Context, networkName, subnet string) (st
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to create network: %w", err)
+		return "", domain.NewDockerError("create network", err)
 	}
 	return resp.ID, nil
 }
@@ -122,7 +123,7 @@ func (s *Svc) BuildBaseImage(ctx context.Context, contextDir string, imageName s
 	})
 
 	if err != nil {
-		return err
+		return domain.NewDockerError("prepare build context", err)
 	}
 
 	res, err := s.client.ImageBuild(ctx, buf, types.ImageBuildOptions{
@@ -131,12 +132,15 @@ func (s *Svc) BuildBaseImage(ctx context.Context, contextDir string, imageName s
 		Remove:     true,
 	})
 	if err != nil {
-		return err
+		return domain.NewDockerError("build image", err)
 	}
 	defer res.Body.Close()
 
 	_, err = io.Copy(os.Stdout, res.Body)
-	return err
+	if err != nil {
+		return domain.NewDockerError("read build output", err)
+	}
+	return nil
 }
 
 func (s *Svc) CreateContainer(ctx context.Context) (string, error) {
@@ -168,7 +172,7 @@ func (s *Svc) CreateContainer(ctx context.Context) (string, error) {
 		},
 	}, nil, containerName)
 	if err != nil {
-		return "", fmt.Errorf("failed to create container: %w", err)
+		return "", domain.NewDockerError("create container", err)
 	}
 	return resp.ID, nil
 }
@@ -182,7 +186,7 @@ func (s *Svc) AttachContainer(ctx context.Context, containerID string) (types.Hi
 		Logs:   true,
 	})
 	if err != nil {
-		return types.HijackedResponse{}, fmt.Errorf("failed to attach to container: %w", err)
+		return types.HijackedResponse{}, domain.NewDockerError("attach to container", err)
 	}
 
 	return attachResp, nil
@@ -191,12 +195,12 @@ func (s *Svc) AttachContainer(ctx context.Context, containerID string) (types.Hi
 func (s *Svc) StartIfNotRunning(ctx context.Context, containerID string) error {
 	inspect, err := s.client.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return fmt.Errorf("failed to inspect container: %w", err)
+		return domain.NewDockerError("inspect container", err)
 	}
 
 	if !inspect.State.Running {
 		if err := s.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-			return fmt.Errorf("failed to start container: %w", err)
+			return domain.NewDockerError("start container", err)
 		}
 	}
 
@@ -210,7 +214,7 @@ func (s *Svc) StopContainer(ctx context.Context, containerID string) error {
 	}
 
 	if err := s.client.ContainerStop(ctx, containerID, stopOptions); err != nil {
-		return fmt.Errorf("failed to stop container: %w", err)
+		return domain.NewDockerError("stop container", err)
 	}
 
 	return nil

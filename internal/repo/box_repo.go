@@ -8,6 +8,7 @@ import (
 	"github.com/faiyaz032/gobox/internal/domain"
 	db "github.com/faiyaz032/gobox/internal/infra/db/sqlc"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -34,7 +35,7 @@ func (r *BoxRepo) Create(ctx context.Context, box domain.Box) (*domain.Box, erro
 
 	dbBox, err := r.queries.CreateBox(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, r.mapError(err, "create box")
 	}
 
 	return r.toDomain(dbBox), nil
@@ -44,9 +45,9 @@ func (r *BoxRepo) GetByFingerprint(ctx context.Context, fingerprintID string) (*
 	dbBox, err := r.queries.GetBoxByFingerprint(ctx, fingerprintID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, domain.NewNotFoundError("box", fingerprintID)
 		}
-		return nil, err
+		return nil, r.mapError(err, "get box by fingerprint")
 	}
 
 	return r.toDomain(dbBox), nil
@@ -55,7 +56,10 @@ func (r *BoxRepo) GetByFingerprint(ctx context.Context, fingerprintID string) (*
 func (r *BoxRepo) GetByContainerID(ctx context.Context, containerID string) (*domain.Box, error) {
 	dbBox, err := r.queries.GetBoxByContainerID(ctx, containerID)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.NewNotFoundError("box", containerID)
+		}
+		return nil, r.mapError(err, "get box by container ID")
 	}
 
 	return r.toDomain(dbBox), nil
@@ -72,7 +76,7 @@ func (r *BoxRepo) Touch(ctx context.Context, fingerprintID string) (*domain.Box,
 
 	err := r.queries.TouchBox(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, r.mapError(err, "touch box")
 	}
 
 	return r.GetByFingerprint(ctx, fingerprintID)
@@ -86,7 +90,7 @@ func (r *BoxRepo) UpdateStatus(ctx context.Context, fingerprintID string, status
 
 	err := r.queries.UpdateBoxStatus(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, r.mapError(err, "update box status")
 	}
 
 	return r.GetByFingerprint(ctx, fingerprintID)
@@ -105,4 +109,36 @@ func (r *BoxRepo) toDomain(dbBox db.Box) *domain.Box {
 		Status:        domain.BoxStatus(dbBox.Status),
 		LastActive:    lastActive,
 	}
+}
+
+// converts database errors to AppError
+func (r *BoxRepo) mapError(err error, operation string) error {
+	if err == nil {
+		return nil
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return domain.NewConflictError("record already exists")
+		case "23503": // foreign_key_violation
+			return domain.NewValidationError("referenced record does not exist")
+		case "23514": // check_violation
+			return domain.NewValidationError("constraint violation: " + pgErr.Message)
+		default:
+			return domain.NewDatabaseError(operation, err)
+		}
+	}
+
+	// Handle connection errors
+	if errors.Is(err, context.DeadlineExceeded) {
+		return domain.NewDatabaseError(operation+" (timeout)", err)
+	}
+
+	if errors.Is(err, context.Canceled) {
+		return domain.NewDatabaseError(operation+" (canceled)", err)
+	}
+
+	return domain.NewDatabaseError(operation, err)
 }

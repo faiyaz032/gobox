@@ -183,9 +183,12 @@ func (s *Svc) AttachContainer(ctx context.Context, containerID string) (types.Hi
 		Stdin:  true,
 		Stdout: true,
 		Stderr: true,
-		Logs:   true,
+		Logs:   false,
 	})
 	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return types.HijackedResponse{}, domain.NewNotFoundError("container", containerID)
+		}
 		return types.HijackedResponse{}, domain.NewDockerError("attach to container", err)
 	}
 
@@ -195,6 +198,9 @@ func (s *Svc) AttachContainer(ctx context.Context, containerID string) (types.Hi
 func (s *Svc) StartIfNotRunning(ctx context.Context, containerID string) error {
 	inspect, err := s.client.ContainerInspect(ctx, containerID)
 	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return domain.NewNotFoundError("container", containerID)
+		}
 		return domain.NewDockerError("inspect container", err)
 	}
 
@@ -215,6 +221,19 @@ func (s *Svc) StopContainer(ctx context.Context, containerID string) error {
 
 	if err := s.client.ContainerStop(ctx, containerID, stopOptions); err != nil {
 		return domain.NewDockerError("stop container", err)
+	}
+
+	return nil
+}
+
+func (s *Svc) RemoveContainer(ctx context.Context, containerID string) error {
+	removeOptions := container.RemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	}
+
+	if err := s.client.ContainerRemove(ctx, containerID, removeOptions); err != nil {
+		return domain.NewDockerError("remove container", err)
 	}
 
 	return nil

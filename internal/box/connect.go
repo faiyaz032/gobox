@@ -54,6 +54,12 @@ func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint str
 			zap.String("fingerprint", fingerprint))
 	} else {
 		if err := s.dockerSvc.StartIfNotRunning(ctx, box.ContainerID); err != nil {
+			if appErr, ok := domain.IsAppError(err); ok && appErr.IsType(domain.ErrorTypeNotFound) {
+				s.logger.Warn("Container not found, cleaning up db record and recreating", zap.String("container_id", box.ContainerID))
+				_ = s.repo.Delete(ctx, fingerprint)
+				s.decrementConnection(fingerprint, box.ContainerID)
+				return s.Connect(ctx, conn, fingerprint)
+			}
 			s.decrementConnection(fingerprint, box.ContainerID)
 			return err
 		}
@@ -71,6 +77,12 @@ func (s *Svc) Connect(ctx context.Context, conn *websocket.Conn, fingerprint str
 
 	attachResp, err := s.dockerSvc.AttachContainer(ctx, box.ContainerID)
 	if err != nil {
+		if appErr, ok := domain.IsAppError(err); ok && appErr.IsType(domain.ErrorTypeNotFound) {
+			s.logger.Warn("Container attached failed (not found), cleaning up db record and recreating", zap.String("container_id", box.ContainerID))
+			_ = s.repo.Delete(ctx, fingerprint)
+			s.decrementConnection(fingerprint, box.ContainerID)
+			return s.Connect(ctx, conn, fingerprint)
+		}
 		s.decrementConnection(fingerprint, box.ContainerID)
 		return err
 	}

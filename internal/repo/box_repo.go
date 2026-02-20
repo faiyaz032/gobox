@@ -96,6 +96,31 @@ func (r *BoxRepo) UpdateStatus(ctx context.Context, fingerprintID string, status
 	return r.GetByFingerprint(ctx, fingerprintID)
 }
 
+func (r *BoxRepo) GetExpiredBoxes(ctx context.Context, lastActive time.Time) ([]domain.Box, error) {
+	dbBoxes, err := r.queries.GetExpiredBoxes(ctx, pgtype.Timestamp{
+		Time:  lastActive,
+		Valid: true,
+	})
+	if err != nil {
+		return nil, r.mapError(err, "get expired boxes")
+	}
+
+	boxes := make([]domain.Box, len(dbBoxes))
+	for i, dbBox := range dbBoxes {
+		boxes[i] = *r.toDomain(dbBox)
+	}
+
+	return boxes, nil
+}
+
+func (r *BoxRepo) Delete(ctx context.Context, fingerprintID string) error {
+	err := r.queries.DeleteBox(ctx, fingerprintID)
+	if err != nil {
+		return r.mapError(err, "delete box")
+	}
+	return nil
+}
+
 func (r *BoxRepo) toDomain(dbBox db.Box) *domain.Box {
 	var lastActive time.Time
 	if dbBox.LastActive.Valid {

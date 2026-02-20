@@ -24,7 +24,11 @@ func RunServer(cfg *config.Config) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
-	defer log.Sync()
+	defer func() {
+		if err := log.Sync(); err != nil {
+			log.Error("Failed to sync logger", zap.Error(err))
+		}
+	}()
 
 	log.Info("Starting GoBox server", zap.String("environment", cfg.Environment))
 
@@ -85,7 +89,10 @@ func RunServer(cfg *config.Config) {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		log.Info("Server is healthy")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Server is running 🚀"))
+		_, err := w.Write([]byte("Server is running 🚀"))
+		if err != nil {
+			log.Error("Failed to write health check response", zap.Error(err))
+		}
 	})
 
 	boxhandler.RegisterRoutes(r, boxHandler)

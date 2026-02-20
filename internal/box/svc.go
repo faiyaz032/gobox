@@ -37,6 +37,7 @@ func NewSvc(repo Repo, dockerSvc DockerSvc, logger *zap.Logger) *Svc {
 	}
 
 	go svc.manageConnections()
+	go svc.cleanupExpiredBoxes()
 
 	return svc
 }
@@ -140,4 +141,30 @@ func (s *Svc) decrementConnection(fingerprint, containerID string) {
 			containerID: containerID,
 		}
 	})
+}
+
+func (s *Svc) cleanupExpiredBoxes() {
+	ticker := time.NewTicker(1 * time.Hour)
+	for range ticker.C {
+		expiredAfter := time.Now().Add(-24 * time.Hour)
+		boxes, err := s.repo.GetExpiredBoxes(context.Background(), expiredAfter)
+		if err != nil {
+			s.logger.Error("failed to get expired boxes", zap.Error(err))
+			continue
+		}
+
+		for _, b := range boxes {
+			err := s.dockerSvc.RemoveContainer(context.Background(), b.ContainerID)
+			if err != nil {
+				s.logger.Error("failed to remove container", zap.String("container_id", b.ContainerID), zap.Error(err))
+			}
+			
+			err = s.repo.Delete(context.Background(), b.FingerprintID)
+			if err != nil {
+				s.logger.Error("failed to delete box from db", zap.String("fingerprint", b.FingerprintID), zap.Error(err))
+			}
+			
+			s.logger.Info("removed expired container", zap.String("container_id", b.ContainerID), zap.String("fingerprint", b.FingerprintID))
+		}
+	}
 }

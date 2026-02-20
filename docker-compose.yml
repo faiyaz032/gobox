@@ -37,7 +37,7 @@ services:
     networks:
       - gobox-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gobox}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gobox} -d ${POSTGRES_DB:-goboxdb}"]
       interval: 10s
       timeout: 5s
       retries: 5

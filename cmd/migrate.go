@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
+	"go.uber.org/zap"
 
 	"github.com/faiyaz032/gobox/internal/config"
 	"github.com/faiyaz032/gobox/internal/infra/logger"
@@ -17,7 +18,11 @@ func RunMigrate(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	defer log.Sync()
+	defer func() {
+		if err := log.Sync(); err != nil {
+			log.Error("Failed to sync logger", zap.Error(err))
+		}
+	}()
 
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

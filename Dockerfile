@@ -1,7 +1,9 @@
 # --- Frontend Builder ---
 FROM node:24-alpine AS frontend-builder
+WORKDIR /app
+# Robust copy to ensure package.json is found
+COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ .
 RUN npm run build

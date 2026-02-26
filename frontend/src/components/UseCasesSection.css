@@ -1,0 +1,157 @@
+/* ===== Use Cases Section ===== */
+.use-cases {
+  padding: 100px 24px;
+  background: var(--bg-card); /* Slightly different background */
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.cases-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  gap: 60px;
+}
+
+.cases-text {
+  flex: 1;
+  max-width: 400px;
+  animation: slideInFromLeft 0.6s ease-out;
+}
+
+.cases-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brand-secondary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+
+.cases-title {
+  font-family: var(--font-brand);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.cases-desc {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.cases-grid {
+  flex: 1.5;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.case-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.case-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.7;
+  transition: all var(--transition-base);
+}
+
+.case-card:hover {
+  transform: translateY(-4px);
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.case-card:hover::before {
+  opacity: 1;
+}
+
+.case-card:nth-child(1) { animation: fadeInUp 0.6s ease-out 0.2s backwards; }
+.case-card:nth-child(2) { animation: fadeInUp 0.6s ease-out 0.4s backwards; }
+.case-card:nth-child(3) { 
+  grid-column: span 2; 
+  animation: fadeInUp 0.6s ease-out 0.6s backwards;
+}
+
+.case-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.case-icon {
+  color: var(--accent);
+  display: flex;
+}
+
+.case-title {
+  font-family: var(--font-brand);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.case-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.case-list li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.case-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+@media (max-width: 968px) {
+  .cases-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .cases-text {
+    max-width: 100%;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  
+  .cases-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .case-card:nth-child(3) {
+    grid-column: auto;
+  }
+}

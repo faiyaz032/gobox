@@ -6,7 +6,20 @@ import { getFingerprint } from '../utils/fingerprint';
 import '@xterm/xterm/css/xterm.css';
 import './TerminalPage.css';
 
-const WS_BASE_URL = 'ws://localhost:8010/api/v1/box/connect';
+const getWsUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.hostname;
+  const port = window.location.port || (window.location.protocol === 'https:' ? '' : '8010');
+  
+  // If we are in production, the port might be different or proxied.
+  // Generally, if there's no port in URL, it's 80/443. 
+  // For your current setup, it seems you are exposing 8010.
+  const finalPort = port ? `:${port}` : '';
+  
+  return `${protocol}//${host}${finalPort}/api/v1/box/connect`;
+};
+
+const WS_BASE_URL = getWsUrl();
 
 // GoBox brand-themed terminal colors
 // Ubuntu-themed terminal colors (Hyper.js style)

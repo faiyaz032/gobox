@@ -1,4 +1,4 @@
-name: GoBox CI/CD Pipeline
+name: Pipeline
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
 
 jobs:
   build-and-push:
-    name: Build and Push Docker Image
+    name: build and push
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,7 +46,7 @@ jobs:
           labels: ${{ steps.meta-backend.outputs.labels }}
 
   deploy:
-    name: Deploy to Production
+    name: deploy
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'

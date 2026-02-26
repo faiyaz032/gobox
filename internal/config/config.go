@@ -26,15 +26,18 @@ type DatabaseConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
-	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
+
+	viper.AddConfigPath(".")
+	viper.SetConfigName(".env")
+	viper.SetConfigType("env")
 
 	viper.SetDefault("SERVER_PORT", "8010")
 	viper.SetDefault("ENVIRONMENT", "development")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("error reading config file: %w", err)
+			fmt.Printf("Note: No .env file found, using environment variables\n")
 		}
 	}
 

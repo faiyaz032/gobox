@@ -104,11 +104,11 @@ db-migrate:
 # Container shell access
 app-shell:
 	@echo "Accessing app container..."
-	docker exec -it gobox-backend-dev sh
+	docker exec -it gobox-dev sh
 
 app-shell-prod:
 	@echo "Accessing production app container..."
-	docker exec -it gobox-backend-prod sh
+	docker exec -it gobox-prod sh
 
 # Clean commands
 clean:
@@ -169,7 +169,7 @@ status:
 
 status-prod:
 	@echo "Production containers status:"
-	@docker ps -a --filter "name=gobox-backend-prod"
+	@docker ps -a --filter "name=gobox-prod"
 
 # Health check
 health:

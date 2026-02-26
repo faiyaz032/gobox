@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,9 +27,7 @@ func RunServer(cfg *config.Config) {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
 	defer func() {
-		if err := log.Sync(); err != nil {
-			log.Error("Failed to sync logger", zap.Error(err))
-		}
+		_ = log.Sync()
 	}()
 
 	log.Info("Starting GoBox server", zap.String("environment", cfg.Environment))
@@ -96,6 +96,23 @@ func RunServer(cfg *config.Config) {
 	})
 
 	boxhandler.RegisterRoutes(r, boxHandler)
+
+	// Serve static files from the frontend build directory
+	staticPath := "./frontend/build"
+	fileServer := http.FileServer(http.Dir(staticPath))
+
+	r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if the requested file exists in the static path
+		path := filepath.Join(staticPath, r.URL.Path)
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) || r.URL.Path == "/" {
+			// If not found, serve index.html (SPA routing)
+			http.ServeFile(w, r, filepath.Join(staticPath, "index.html"))
+			return
+		}
+		// Otherwise, serve the static file
+		fileServer.ServeHTTP(w, r)
+	}))
 
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 

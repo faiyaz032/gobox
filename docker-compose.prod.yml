@@ -1,10 +1,11 @@
 services:
   app:
+    image: ghcr.io/faiyaz032/gobox:main
     build:
       context: .
       dockerfile: Dockerfile
       target: production
-    container_name: gobox-backend-prod
+    container_name: gobox-prod
     restart: always
     ports:
       - "${SERVER_PORT:-8010}:8010"
@@ -14,6 +15,7 @@ services:
       - .env.prod
     environment:
       POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,7 +31,7 @@ services:
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5435}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

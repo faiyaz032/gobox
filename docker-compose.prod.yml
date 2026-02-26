@@ -27,7 +27,7 @@ services:
     container_name: gobox-postgres-prod
     restart: always
     env_file:
-      - .env.prod
+      - .env
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:

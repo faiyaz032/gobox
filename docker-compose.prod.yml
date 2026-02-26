@@ -48,4 +48,3 @@ volumes:
 networks:
   gobox-network:
     driver: bridge
-    external: true
